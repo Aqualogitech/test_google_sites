@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unblocked Games & Browser</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Outfit:wght@500;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <!-- Animated Background -->
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <!-- Load Screen -->
+    <div id="loader" class="loader-overlay gradient-swipe">
+        <div class="loader-content">
+            <h1 class="glitch" data-text="Habt ihr Bock auf Schule?">Habt ihr Bock auf Schule?</h1>
+            <h2 class="subtitle">Wir nämlich auch nicht!</h2>
+            <button id="startBtn" class="glow-btn">
+                <span>Jetzt loslegen</span>
+                <i class="fa-solid fa-rocket"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app" class="app-container hidden">
+
+        <!-- === HOME VIEW === -->
+        <div id="homeView" class="view-section active">
+            <!-- Hero & Search -->
+            <section class="hero-section">
+                <h1 class="hero-title"><span id="typewriter"></span><span class="cursor">|</span></h1>
+                <p class="hero-subtitle">Surfe frei im Internet und endecke tolle Spiele</p>
+
+                <div class="main-search-container">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="mainSearchInput" placeholder="Suchen oder URL eingeben..."
+                        autocomplete="off">
+                    <button id="mainSearchBtn" class="search-submit-btn"><i
+                            class="fa-solid fa-arrow-right"></i></button>
+                </div>
+            </section>
+
+            <!-- Top Games Grid -->
+            <section class="games-section">
+                <h2 class="section-title"><i class="fa-solid fa-gamepad"></i> Beliebte Spiele</h2>
+                <div class="games-grid">
+                    <!-- Game Items with Placeholders -->
+                    <div class="game-card" data-url="https://skribbl.io">
+                        <div class="game-placeholder" style="--hue: 280;"><span>S</span></div>
+                        <span class="game-name">Skribbl.io</span>
+                    </div>
+                    <div class="game-card" data-url="https://1v1.lol">
+                        <div class="game-placeholder" style="--hue: 200;"><span>1</span></div>
+                        <span class="game-name">1v1.lol</span>
+                    </div>
+                    <div class="game-card" data-url="https://smashkarts.io">
+                        <div class="game-placeholder" style="--hue: 10;"><span>S</span></div>
+                        <span class="game-name">Smash Karts</span>
+                    </div>
+                    <div class="game-card" data-url="https://shellshock.io">
+                        <div class="game-placeholder" style="--hue: 45;"><span>S</span></div>
+                        <span class="game-name">Shell Shockers</span>
+                    </div>
+                    <div class="game-card" data-url="https://krunker.io">
+                        <div class="game-placeholder" style="--hue: 320;"><span>K</span></div>
+                        <span class="game-name">Krunker.io</span>
+                    </div>
+                    <div class="game-card" data-url="https://hole.io">
+                        <div class="game-placeholder" style="--hue: 250;"><span>H</span></div>
+                        <span class="game-name">Hole.io</span>
+                    </div>
+                    <div class="game-card" data-url="https://slope.io">
+                        <div class="game-placeholder" style="--hue: 150;"><span>S</span></div>
+                        <span class="game-name">Slope</span>
+                    </div>
+                    <div class="game-card" data-url="https://run3.io">
+                        <div class="game-placeholder" style="--hue: 20;"><span>R</span></div>
+                        <span class="game-name">Run 3</span>
+                    </div>
+                    <div class="game-card" data-url="https://vex6.io">
+                        <div class="game-placeholder" style="--hue: 180;"><span>V</span></div>
+                        <span class="game-name">Vex 6</span>
+                    </div>
+                    <div class="game-card" data-url="https://motox3m.co">
+                        <div class="game-placeholder" style="--hue: 100;"><span>M</span></div>
+                        <span class="game-name">Moto X3M</span>
+                    </div>
+                    <div class="game-card" data-url="https://fireboyandwatergirl.io">
+                        <div class="game-placeholder" style="--hue: 350;"><span>F</span></div>
+                        <span class="game-name">Fireboy & Watergirl</span>
+                    </div>
+                    <div class="game-card" data-url="https://cookieclicker.ee">
+                        <div class="game-placeholder" style="--hue: 35;"><span>C</span></div>
+                        <span class="game-name">Cookie Clicker</span>
+                    </div>
+                    <div class="game-card" data-url="https://retrobowl.me">
+                        <div class="game-placeholder" style="--hue: 220;"><span>R</span></div>
+                        <span class="game-name">Retro Bowl</span>
+                    </div>
+                    <div class="game-card" data-url="https://geometrydash.io">
+                        <div class="game-placeholder" style="--hue: 290;"><span>G</span></div>
+                        <span class="game-name">Geometry Dash</span>
+                    </div>
+                    <div class="game-card" data-url="https://bitlife.io">
+                        <div class="game-placeholder" style="--hue: 340;"><span>B</span></div>
+                        <span class="game-name">BitLife</span>
+                    </div>
+
+                    <!-- NEW GAMES ADDED -->
+                    <div class="game-card" data-url="https://pacman.com">
+                        <div class="game-placeholder" style="--hue: 60;"><span>P</span></div>
+                        <span class="game-name">Pac-Man</span>
+                    </div>
+                    <div class="game-card" data-url="https://tetris.com">
+                        <div class="game-placeholder" style="--hue: 120;"><span>T</span></div>
+                        <span class="game-name">Tetris</span>
+                    </div>
+                    <div class="game-card" data-url="https://play2048.co">
+                        <div class="game-placeholder" style="--hue: 40;"><span>2</span></div>
+                        <span class="game-name">2048</span>
+                    </div>
+                    <div class="game-card" data-url="https://flappybird.io">
+                        <div class="game-placeholder" style="--hue: 80;"><span>F</span></div>
+                        <span class="game-name">Flappy Bird</span>
+                    </div>
+                    <div class="game-card" data-url="https://classic.minecraft.net">
+                        <div class="game-placeholder" style="--hue: 110;"><span>M</span></div>
+                        <span class="game-name">Minecraft Classic</span>
+                    </div>
+                    <div class="game-card" data-url="https://basketballstars.io">
+                        <div class="game-placeholder" style="--hue: 25;"><span>B</span></div>
+                        <span class="game-name">Basketball Stars</span>
+                    </div>
+                    <div class="game-card" data-url="https://soccerrandom.com">
+                        <div class="game-placeholder" style="--hue: 210;"><span>S</span></div>
+                        <span class="game-name">Soccer Random</span>
+                    </div>
+                    <div class="game-card" data-url="https://crossyroad.com">
+                        <div class="game-placeholder" style="--hue: 190;"><span>C</span></div>
+                        <span class="game-name">Crossy Road</span>
+                    </div>
+                    <div class="game-card" data-url="https://driftboss.io">
+                        <div class="game-placeholder" style="--hue: 270;"><span>D</span></div>
+                        <span class="game-name">Drift Boss</span>
+                    </div>
+                    <div class="game-card" data-url="https://snowrider3d.com">
+                        <div class="game-placeholder" style="--hue: 195;"><span>S</span></div>
+                        <span class="game-name">Snow Rider 3D</span>
+                    </div>
+                    <div class="game-card" data-url="https://drivemad.io">
+                        <div class="game-placeholder" style="--hue: 55;"><span>D</span></div>
+                        <span class="game-name">Drive Mad</span>
+                    </div>
+                    <div class="game-card" data-url="https://stickmanhook.io">
+                        <div class="game-placeholder" style="--hue: 330;"><span>S</span></div>
+                        <span class="game-name">Stickman Hook</span>
+                    </div>
+                    <div class="game-card" data-url="https://paper-io.com">
+                        <div class="game-placeholder" style="--hue: 170;"><span>P</span></div>
+                        <span class="game-name">Paper.io 2</span>
+                    </div>
+                    <div class="game-card" data-url="https://agar.io">
+                        <div class="game-placeholder" style="--hue: 310;"><span>A</span></div>
+                        <span class="game-name">Agar.io</span>
+                    </div>
+                    <div class="game-card" data-url="https://slither.io">
+                        <div class="game-placeholder" style="--hue: 140;"><span>S</span></div>
+                        <span class="game-name">Slither.io</span>
+                    </div>
+                    <div class="game-card" data-url="https://zombsroyale.io">
+                        <div class="game-placeholder" style="--hue: 355;"><span>Z</span></div>
+                        <span class="game-name">Zombs Royale</span>
+                    </div>
+                    <div class="game-card" data-url="https://chess.com">
+                        <div class="game-placeholder" style="--hue: 0;"><span>C</span></div>
+                        <span class="game-name">Chess</span>
+                    </div>
+                    <div class="game-card" data-url="https://tictactoe.com">
+                        <div class="game-placeholder" style="--hue: 215;"><span>T</span></div>
+                        <span class="game-name">Tic Tac Toe</span>
+                    </div>
+                    <div class="game-card" data-url="https://nytimes.com/games/wordle">
+                        <div class="game-placeholder" style="--hue: 130;"><span>W</span></div>
+                        <span class="game-name">Wordle</span>
+                    </div>
+                    <div class="game-card" data-url="https://amongus.com">
+                        <div class="game-placeholder" style="--hue: 5;"><span>A</span></div>
+                        <span class="game-name">Among Us</span>
+                    </div>
+                    <div class="game-card" data-url="https://fnf.io">
+                        <div class="game-placeholder" style="--hue: 295;"><span>F</span></div>
+                        <span class="game-name">FNF</span>
+                    </div>
+                    <div class="game-card" data-url="https://madalinstuntcars2.io">
+                        <div class="game-placeholder" style="--hue: 15;"><span>M</span></div>
+                        <span class="game-name">Stunt Cars 2</span>
+                    </div>
+                    <div class="game-card" data-url="https://ducklife.com">
+                        <div class="game-placeholder" style="--hue: 45;"><span>D</span></div>
+                        <span class="game-name">Duck Life</span>
+                    </div>
+                    <div class="game-card" data-url="https://papas-pizzeria.io">
+                        <div class="game-placeholder" style="--hue: 25;"><span>P</span></div>
+                        <span class="game-name">Papa's Pizzeria</span>
+                    </div>
+                    <div class="game-card" data-url="https://happywheels.io">
+                        <div class="game-placeholder" style="--hue: 345;"><span>H</span></div>
+                        <span class="game-name">Happy Wheels</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Über uns -->
+            <section class="features-section">
+                <h2 class="section-title"><i class="fa-solid fa-users"></i> Über uns</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-user-group"></i></div>
+                        <h3>Kleines Team</h3>
+                        <p>Hinter dieser Seite steckt ein kleines, engagiertes Team, das hart daran arbeitet, dir den
+                            besten Freiraum im Netz zu bieten.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-ban"></i></div>
+                        <h3>Werbefreie Homepage</h3>
+                        <p>Unsere Homepage ist zu 100% werbefrei. Bitte beachte, dass wir externe Werbung innerhalb der
+                            Spiele leider nicht kontrollieren können.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon"><i class="fa-solid fa-arrows-rotate"></i></div>
+                        <h3>Regelmäßige Updates</h3>
+                        <p>Wir erweitern unsere Spielebibliothek ständig und halten die Proxy-Technik aktuell, damit
+                            alles reibungslos funktioniert.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- === BROWSER VIEW === -->
+        <div id="browserView" class="view-section hidden">
+            <!-- Browser Top Bar -->
+            <header class="browser-bar">
+                <button id="backBtn" class="icon-btn tooltip" data-tooltip="Zurück zum Home-Menü">
+                    <i class="fa-solid fa-house"></i>
+                </button>
+                <div class="url-display">
+                    <i class="fa-solid fa-lock"></i>
+                    <span id="currentUrlText">Proxy Browser</span>
+                </div>
+                <div class="header-actions">
+                    <button id="refreshBtn" class="icon-btn tooltip" data-tooltip="Neu laden"><i
+                            class="fa-solid fa-rotate-right"></i></button>
+                    <button id="fullscreenBtn" class="icon-btn tooltip" data-tooltip="Vollbild"><i
+                            class="fa-solid fa-expand"></i></button>
+                </div>
+            </header>
+
+            <!-- Browser Frame -->
+            <div class="iframe-container">
+                <div class="iframe-loader hidden" id="iframeLoader">
+                    <div class="spinner"></div>
+                </div>
+                <iframe id="browserFrame" src="" frameborder="0" allowfullscreen></iframe>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Theme Switch -->
+    <div class="theme-switch-wrapper">
+        <label class="theme-switch" for="checkbox">
+            <input type="checkbox" id="checkbox" />
+            <div class="slider round">
+                <i class="fa-solid fa-moon moon-icon"></i>
+                <i class="fa-solid fa-sun sun-icon"></i>
+            </div>
+        </label>
+    </div>
+
+    <!-- Panic View -->
+    <div id="panicView" class="hidden">
+        <iframe src="https://www.google.com/webhp?igu=1" frameborder="0" allowfullscreen></iframe>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
