@@ -12,6 +12,12 @@
     "categories": ["all"]
   },
   {
+    "name": "Cat Sudoku (Meowdoku Web)",
+    "link": "https://deskcade.online/games/puzzle/cat-sudoku-alternative.html",
+    "image": "https://deskcade.online/guidephotos/meowdoku-cover.png",
+    "categories": ["all", "puzzle", "games"]
+  },
+  {
     "name": "! [NEW] Request A Game",
     "link": "https://forms.gle/vwdHN3iPz5cLaHaMA",
     "image": "/assets/media/icons/request.webp",
