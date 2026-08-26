@@ -15,25 +15,22 @@ async function encodeProxyUrl(url) {
     if (window.__isSjReady) await window.__isSjReady;
     if (window.__isSj?.encodeUrl) return window.__isSj.encodeUrl(url);
   }
-  return `/uv/${__uv$config.encodeUrl(url)}`;
+  if (localStorage.getItem("proxy") === "dy") return `/uv/dynamic/${window.encode.xor(url)}`;
+  return `/uv/${__uv$config.encodeUrl ? __uv$config.encodeUrl(url) : window.encode.xor(url)}`;
 }
 
 function encodeProxyUrlSync(url) {
   if (isScramjetEnabled() && window.__isSj?.encodeUrl) return window.__isSj.encodeUrl(url);
-  return `/uv/${__uv$config.encodeUrl(url)}`;
+  if (localStorage.getItem("proxy") === "dy") return `/uv/dynamic/${window.encode.xor(url)}`;
+  return `/uv/${__uv$config.encodeUrl ? __uv$config.encodeUrl(url) : window.encode.xor(url)}`;
 }
 
 window.__encodeProxyUrl = encodeProxyUrlSync;
 
-function decodeUVUrl(input) {
+function decodeDynamicPath(input) {
   if (!input) return input;
   const [str, ...search] = input.split("?");
-  return (
-    decodeURIComponent(str)
-      .split("")
-      .map((char, ind) => (ind % 2 ? String.fromCharCode(char.charCodeAt(0) ^ 2) : char))
-      .join("") + (search.length ? `?${search.join("?")}` : "")
-  );
+  return window.decode.xor(str) + (search.length ? `?${search.join("?")}` : "");
 }
 
 function updateAddressBar() {
@@ -62,11 +59,11 @@ function updateAddressBar() {
   } else if (currentUrl.includes("/uv/dynamic/")) {
     const path = currentUrl.replace(window.location.origin, "").replace("/uv/dynamic/", "");
     localStorage.setItem("decoded", path);
-    input.value = decodeUVUrl(path);
+    input.value = decodeDynamicPath(path);
   } else if (currentUrl.includes("/uv/")) {
     const path = currentUrl.replace(window.location.origin, "").replace("/uv/", "");
     localStorage.setItem("decoded", path);
-    input.value = decodeUVUrl(path);
+    input.value = __uv$config.decodeUrl ? __uv$config.decodeUrl(path) : window.decode.xor(path);
   } else {
     const path = currentUrl.replace(window.location.origin, "");
     input.value = path;

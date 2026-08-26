@@ -1,8 +1,19 @@
+import { createHash } from "node:crypto";
 import { cp, readdir, readFile, writeFile, rm, mkdir } from "node:fs/promises";
 import path from "node:path";
 import { minify } from "terser";
 import JavaScriptObfuscator from "javascript-obfuscator";
 import chalk from "chalk";
+
+const OBFUSCATOR_PROMO_PATTERN = /\[javascript-obfuscator\]|JavaScript Obfuscator Pro|obfuscator\.io/i;
+
+for (const method of ["log", "info", "warn"]) {
+  const original = console[method].bind(console);
+  console[method] = (...args) => {
+    if (args.some(arg => OBFUSCATOR_PROMO_PATTERN.test(String(arg)))) return;
+    original(...args);
+  };
+}
 
 const OBFUSCATE = true;
 const OBFUSCATE_HTML = true;
@@ -18,7 +29,10 @@ const DYNAMIC_PREFIX = "dynamic.";
 
 const KEEP_IN_PLACE = new Set();
 
-const SKIP_OBFUSCATE = new Set(["scramjet.all.js", "scramjet.sync.js"]);
+// scramjet.*: already-built vendor bundles.
+// sj-tp.js / ultraviolet.config.js: hold codec functions the proxies eval in another
+// realm, where the obfuscator's string-array helpers do not exist.
+const SKIP_OBFUSCATE = new Set(["scramjet.all.js", "scramjet.sync.js", "sj-tp.js", "ultraviolet.config.js"]);
 
 const OLD_DYNAMIC_PREFIX = "/assets/dynamic/";
 const OLD_UV_PREFIX = "/assets/ultraviolet/";
@@ -128,7 +142,6 @@ const WORDS = [
   "of",
   "the",
   "deal",
-  ",",
   "honest",
   "we",
   "got",
@@ -142,7 +155,6 @@ const WORDS = [
   "year",
   "white",
   "ferrari",
-  "(oh)",
   "good",
   "times",
 ];
@@ -266,7 +278,171 @@ function replaceAll(content, oldStr, newStr) {
   return content.split(oldStr).join(newStr);
 }
 
-async function runObfuscator(source) {
+const URL_CODEC_NAMES = ["xor"];
+
+const URL_CODEC_FUNCTIONS = {
+  xor: {
+    encode: 'url => url && encodeURIComponent(url.split("").map((char, index) => (index % 2 ? String.fromCharCode(char.charCodeAt(0) ^ 2) : char)).join(""))',
+    decode:
+      'url => { if (!url) return url; const index = url.search(/[?#]/); const value = index < 0 ? url : url.slice(0, index); const tail = index < 0 ? "" : url.slice(index); return decodeURIComponent(value).split("").map((char, index) => (index % 2 ? String.fromCharCode(char.charCodeAt(0) ^ 2) : char)).join("") + tail; }',
+  },
+};
+
+function randomXorKey() {
+  const chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+  const firstChars = "23456789abcdefghijklmnopqrstuvwxyz";
+  const length = randomInt(1, 2);
+  let key = randomItem(firstChars);
+  for (let index = 1; index < length; index++) key += randomItem(chars);
+  return key;
+}
+
+function xorKeyValue(key) {
+  const value = /^\d+$/.test(key) ? Number(key) : parseInt(key, 36);
+  return Number.isFinite(value) && value > 1 ? (value % 30) + 2 : 2;
+}
+
+function randomCodecSpec(names = URL_CODEC_NAMES, keyed = true) {
+  const codec = randomItem(names);
+  return keyed && codec === "xor" ? `${codec}:${randomXorKey()}` : codec;
+}
+
+function parseCodecSpec(spec) {
+  const [codec, ...keyParts] = String(spec).split(":");
+  return { codec, key: keyParts.join(":") };
+}
+
+function createXorCodec(key) {
+  if (!key) return URL_CODEC_FUNCTIONS.xor;
+
+  const encodedKey = xorKeyValue(key);
+  const encodeValue = `(url => encodeURIComponent(url.split("").map((char, index) => (index % ${encodedKey} ? String.fromCharCode(char.charCodeAt(0) ^ ${encodedKey}) : char)).join("")))`;
+  const decodeValue = `(url => decodeURIComponent(url).split("").map((char, index) => (index % ${encodedKey} ? String.fromCharCode(char.charCodeAt(0) ^ ${encodedKey}) : char)).join(""))`;
+  return {
+    encode: `url => url && ${encodeValue}(url)`,
+    decode: `url => { if (!url) return url; const index = url.search(/[?#]/); const value = index < 0 ? url : url.slice(0, index); const tail = index < 0 ? "" : url.slice(index); return ${decodeValue}(value) + tail; }`,
+  };
+}
+
+function getUrlCodecFunctions(codec, key) {
+  if (codec === "xor") return createXorCodec(key);
+  return URL_CODEC_FUNCTIONS[codec];
+}
+
+function createProxyCodecs() {
+  return {
+    uv: randomCodecSpec(URL_CODEC_NAMES),
+    dynamic: randomCodecSpec(URL_CODEC_NAMES),
+    scramjet: randomCodecSpec(URL_CODEC_NAMES),
+  };
+}
+
+// Fatal: a half-patched build encodes and decodes with different keys, silently breaking
+// every proxied URL.
+class CodecPatchError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "CodecPatchError";
+  }
+}
+
+// Optional patches cover patterns that exist in only some files sharing a branch below.
+function patchOrFail(content, pattern, replacement, label, required = true) {
+  if (!pattern.test(content)) {
+    if (!required) return content;
+    throw new CodecPatchError(`${label}: pattern no longer matches. Upstream file changed - update the pattern in patchProxyCodecs().`);
+  }
+  pattern.lastIndex = 0;
+  return content.replace(pattern, replacement);
+}
+
+// Local patches on the vendored Dynamic bundles. A vendor drop or a formatter reflow
+// aborts the build instead of shipping a half-patched proxy. See dynamic-changes.md.
+const FIX2_GUARD = `("PropertyDefinition"!=t.type||t.key!=e||t.computed)`;
+const FIX3_GUARD = `"MetaProperty"==e.object.type`;
+const FIX4_GUARD = `"null"===e.origin?e.href:`;
+const LOCAL_PATCH_ASSERTIONS = {
+  "dynamic.worker.js": [
+    ["Fix 1 html module filename", `[["html","dynamic.html.js"]]`, 1],
+    ["Fix 2 PropertyDefinition.key guard", FIX2_GUARD, 1],
+    ["Fix 3 import.meta.url base", FIX3_GUARD, 1],
+    ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
+  ],
+  "dynamic.client.js": [
+    ["Fix 2 PropertyDefinition.key guard", FIX2_GUARD, 1],
+    ["Fix 3 import.meta.url base", FIX3_GUARD, 1],
+    ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
+  ],
+  "dynamic.handler.js": [
+    ["Fix 2 PropertyDefinition.key guard", FIX2_GUARD, 1],
+    ["Fix 3 import.meta.url base", FIX3_GUARD, 1],
+    ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
+  ],
+};
+
+function assertLocalPatches(content, basename) {
+  const checks = LOCAL_PATCH_ASSERTIONS[basename];
+  if (!checks) return content;
+  for (const [label, needle, expected] of checks) {
+    const found = content.split(needle).length - 1;
+    if (found !== expected) {
+      throw new CodecPatchError(
+        `${basename}: local patch "${label}" expected ${expected} occurrence(s) in the minified source, found ${found}. The vendor bundle or the minifier changed - re-apply the patch (see static/assets/dynamic/dynamic-changes.md).`,
+      );
+    }
+  }
+  return content;
+}
+
+function patchProxyCodecs(content, basename, proxyCodecs) {
+  if (basename === "ultraviolet.config.js") {
+    const { codec, key } = parseCodecSpec(proxyCodecs.uv);
+    const uvCodec = getUrlCodecFunctions(codec, key);
+    content = patchOrFail(content, /encodeUrl:\s*Ultraviolet\.codec\.\w+\.encode,/, `encodeUrl: ${uvCodec.encode},`, "ultraviolet.config.js encodeUrl");
+    content = patchOrFail(content, /decodeUrl:\s*Ultraviolet\.codec\.\w+\.decode,/, `decodeUrl: ${uvCodec.decode},`, "ultraviolet.config.js decodeUrl");
+  }
+
+  if (basename === "dynamic.config.js") {
+    content = patchOrFail(content, /encoding:\s*["']\w+["']/, 'encoding: "xor"', "dynamic.config.js encoding");
+  }
+
+  // All three bundles inline the same codec, and the client and handler rewrite in-page
+  // links, so patching only the worker breaks every navigation after the first.
+  if (basename === "dynamic.worker.js" || basename === "dynamic.client.js" || basename === "dynamic.handler.js") {
+    const { key } = parseCodecSpec(proxyCodecs.dynamic);
+    const dynamicKey = xorKeyValue(key);
+    content = patchOrFail(
+      content,
+      /\{encode:\(e,t=2\)=>e&&encodeURIComponent\(e\.split\(""\)\.map\(\(e,i\)=>i%t\?String\.fromCharCode\(e\.charCodeAt\(0\)\^t\):e\)\.join\(""\)\),decode:\(e,t=2\)=>e&&decodeURIComponent\(e\)\.split\(""\)\.map\(\(e,i\)=>i%t\?String\.fromCharCode\(e\.charCodeAt\(0\)\^t\):e\)\.join\(""\)\}/g,
+      `{encode:e=>e&&encodeURIComponent(e.split("").map((e,i)=>i%${dynamicKey}?String.fromCharCode(e.charCodeAt(0)^${dynamicKey}):e).join("")),decode:e=>e&&decodeURIComponent(e).split("").map((e,i)=>i%${dynamicKey}?String.fromCharCode(e.charCodeAt(0)^${dynamicKey}):e).join("")}`,
+      `${basename} xor codec`,
+    );
+  }
+
+  if (basename === "search.js" || basename === "tabs.js") {
+    const { key } = parseCodecSpec(proxyCodecs.dynamic);
+    const dynamicKey = JSON.stringify(key || "2");
+    content = patchOrFail(content, /\/uv\/dynamic\/\$\{window\.encode\.xor\(url\)\}/g, `/uv/dynamic/\${window.encode.xor(url, ${dynamicKey})}`, `${basename} dynamic encode(url)`);
+    content = patchOrFail(content, /\/uv\/dynamic\/\$\{window\.encode\.xor\(value\)\}/g, `/uv/dynamic/\${window.encode.xor(value, ${dynamicKey})}`, `${basename} dynamic encode(value)`, basename === "search.js");
+    content = patchOrFail(content, /return window\.decode\.xor\(str\) \+ \(search\.length/g, `return window.decode.xor(str, ${dynamicKey}) + (search.length`, `${basename} dynamic decode`, basename === "tabs.js");
+  }
+
+  if (basename === "sj-tp.js") {
+    const { codec, key } = parseCodecSpec(proxyCodecs.scramjet);
+    const sjCodec = getUrlCodecFunctions(codec, key);
+    content = patchOrFail(content, /codec:\s*\{[\s\S]*?\n\s*\},\n\s*files:/, `codec: {\n      encode: ${sjCodec.encode},\n      decode: ${sjCodec.decode},\n    },\n    files:`, "sj-tp.js codec");
+  }
+
+  return content;
+}
+
+// sw.js importScripts six files into one scope and inline scripts share window, so the
+// obfuscator's hex identifiers collide. Give each file its own prefix.
+function identifiersPrefixFor(scopeKey) {
+  return `_${createHash("sha1").update(scopeKey).digest("hex").slice(0, 8)}_`;
+}
+
+async function runObfuscator(source, scopeKey) {
   const minified = await minify(source, {
     compress: { drop_console: false, passes: 2 },
     mangle: true,
@@ -275,6 +451,7 @@ async function runObfuscator(source) {
   if (!minified.code) throw new Error("Terser returned empty output");
 
   const obfuscated = JavaScriptObfuscator.obfuscate(minified.code, {
+    identifiersPrefix: identifiersPrefixFor(scopeKey),
     compact: true,
     controlFlowFlattening: true,
     controlFlowFlatteningThreshold: 0.5,
@@ -287,7 +464,7 @@ async function runObfuscator(source) {
     splitStrings: true,
     splitStringsChunkLength: 5,
     stringArray: true,
-    stringArrayEncoding: ["base64"],
+    stringArrayEncoding: ["rc4"],
     stringArrayThreshold: 1,
     transformObjectKeys: true,
     unicodeEscapeSequence: false,
@@ -305,7 +482,7 @@ function shouldProcessInlineScript(attrs) {
   return ["text/javascript", "application/javascript", "module"].includes(type);
 }
 
-async function obfuscateInlineScripts(html) {
+async function obfuscateInlineScripts(html, htmlName) {
   const scripts = [];
   let index = 0;
 
@@ -320,7 +497,7 @@ async function obfuscateInlineScripts(html) {
       if (!script.source.trim() || !shouldProcessInlineScript(script.attrs)) return [script.token, script.match];
 
       try {
-        const obfuscated = await runObfuscator(script.source);
+        const obfuscated = await runObfuscator(script.source, `${htmlName}#${script.token}`);
         return [script.token, `<script${script.attrs}>${obfuscated}</script>`];
       } catch (err) {
         console.warn(chalk.yellow(`  ! inline script skipped: ${err.message}`));
@@ -330,7 +507,9 @@ async function obfuscateInlineScripts(html) {
   );
 
   let output = protectedHtml;
-  for (const [token, script] of processedScripts) output = output.replace(token, script);
+  // Function replacement, never a string: obfuscated code contains `$&`/`$\``/`$'`, which
+  // String.replace would expand.
+  for (const [token, script] of processedScripts) output = output.replace(token, () => script);
   return output;
 }
 
@@ -352,7 +531,7 @@ function minifyHtml(html) {
     .replace(/\s+\/>/g, "/>")
     .trim();
 
-  for (const [token, block] of blocks) output = output.replace(token, block);
+  for (const [token, block] of blocks) output = output.replace(token, () => block);
   return output;
 }
 
@@ -400,13 +579,12 @@ function obfuscateHtmlMarkup(html) {
   output = obfuscateAttributeValues(output);
   output = obfuscateTextNodes(output);
 
-  for (const [token, block] of blocks) output = output.replace(token, block);
-  output = obfuscateAttributeValues(output);
+  for (const [token, block] of blocks) output = output.replace(token, () => block);
   return output;
 }
 
-async function obfuscateHtml(html) {
-  return obfuscateHtmlMarkup(minifyHtml(await obfuscateInlineScripts(html)));
+async function obfuscateHtml(html, htmlName) {
+  return obfuscateHtmlMarkup(minifyHtml(await obfuscateInlineScripts(html, htmlName)));
 }
 
 async function getJsFiles(dir) {
@@ -469,11 +647,16 @@ async function build() {
   const NEW_UV_SCOPE = `/${uvBase}/`;
   const NEW_SCRAMJET_SCOPE = `/${uvBase}/${scramjetSub}/`;
   const NEW_DYNAMIC_SCOPE = `/${uvBase}/${dynamicSub}/`;
+  const proxyCodecs = createProxyCodecs();
 
   console.log(`\nScope paths:`);
   console.log(`  ${OLD_UV_SCOPE} -> ${NEW_UV_SCOPE}`);
   console.log(`  ${OLD_SCRAMJET_SCOPE} -> ${NEW_SCRAMJET_SCOPE}`);
   console.log(`  ${OLD_DYNAMIC_SCOPE} -> ${NEW_DYNAMIC_SCOPE}`);
+  console.log(`\nURL codecs:`);
+  console.log(`  ultraviolet: ${proxyCodecs.uv}`);
+  console.log(`  scramjet:    ${proxyCodecs.scramjet}`);
+  console.log(`  dynamic:     ${proxyCodecs.dynamic}`);
 
   let jsPublicDir, dynPublicDir;
   do {
@@ -489,7 +672,7 @@ async function build() {
   const NEW_DYNAMIC_FILE_PREFIX = `/${dynPublicDir}/`;
   const NEW_UV_FILE_PREFIX = `/${jsPublicDir}/`;
 
-  const PROTECTED = ["/bm/", "/ep/", "/bare/", "/wisp/", "/assets/scramjet/", NEW_UV_SCOPE, NEW_SCRAMJET_SCOPE, NEW_DYNAMIC_SCOPE];
+  const PROTECTED = ["/bare/", "/wisp/", "/baremux/", "/epoxy/", "/libcurl/", "/assets/scramjet/", NEW_UV_SCOPE, NEW_SCRAMJET_SCOPE, NEW_DYNAMIC_SCOPE];
 
   const usedPaths = new Set();
 
@@ -550,7 +733,11 @@ async function build() {
     const basename = path.basename(filePath);
 
     if (basename.startsWith(DYNAMIC_PREFIX)) {
-      const { publicPath: newPublicPath, fullPath: newFullPath } = nextOutputPath(dynPublicDir, dynDirFull);
+      // Dynamic rebuilds these URLs at runtime from assets.prefix plus hardcoded
+      // fragments, so the filenames must survive. Randomize the directory only.
+      const newPublicPath = `/${dynPublicDir}/${basename}`;
+      const newFullPath = path.join(dynDirFull, basename);
+      usedPaths.add(newPublicPath);
       plan.set(filePath, { basename, newPublicPath, newFullPath, inPlace: false, group: "dynamic" });
       dynRenameMap.set(basename, newPublicPath);
     } else {
@@ -564,11 +751,14 @@ async function build() {
 
   let passed = 0;
   let failed = 0;
+  const codecFailures = [];
 
   await Promise.all(
     [...plan.entries()].map(async ([filePath, { basename, newPublicPath, newFullPath, inPlace, group }]) => {
       try {
         let output = await readFile(filePath, "utf8");
+        output = assertLocalPatches(output, basename);
+        output = patchProxyCodecs(output, basename, proxyCodecs);
 
         output = replaceAll(output, OLD_SCRAMJET_SCOPE, NEW_SCRAMJET_SCOPE);
         output = replaceAll(output, OLD_DYNAMIC_SCOPE, NEW_DYNAMIC_SCOPE);
@@ -582,17 +772,13 @@ async function build() {
         }
 
         if (group === "dynamic") {
+          // Directory only: absolute paths in dynamic.config.js's assets.files.* would make
+          // Dynamic request assets.prefix + "/dir/file.js" -> /dir//dir/file.js.
           output = replaceAll(output, OLD_DYNAMIC_PREFIX, NEW_DYNAMIC_FILE_PREFIX);
-          for (const [orig, newPath] of dynRenameMap) {
-            const q = `['"\`]`;
-            const pat = new RegExp(`(${q})${escapeRegex(orig)}(${q})`, "g");
-            output = output.replace(pat, `$1${newPath}$2`);
-          }
-          output = applyRenameMap(output, dynRenameMap, PROTECTED);
         }
 
         const shouldObfuscate = OBFUSCATE && !SKIP_OBFUSCATE.has(basename);
-        if (shouldObfuscate) output = await runObfuscator(output);
+        if (shouldObfuscate) output = await runObfuscator(output, basename);
 
         await mkdir(path.dirname(newFullPath), { recursive: true });
         await writeFile(newFullPath, output, "utf8");
@@ -602,6 +788,7 @@ async function build() {
         console.log(chalk.green(`  + ${basename} -> ${newPublicPath} ${tag}`));
         passed++;
       } catch (err) {
+        if (err instanceof CodecPatchError) codecFailures.push(err.message);
         console.error(chalk.red(`  x ${basename}: ${err.message}`));
         failed++;
       }
@@ -609,6 +796,14 @@ async function build() {
   );
 
   console.log(`\n${passed} processed${failed ? `, ${failed} failed` : ""}`);
+
+  if (codecFailures.length) {
+    console.error(chalk.red("\nAborting: URL codec patching failed."));
+    console.error(chalk.red("The client and the proxy would encode/decode with mismatched keys, breaking every proxied URL.\n"));
+    for (const message of codecFailures) console.error(chalk.red(`  - ${message}`));
+    console.error(chalk.gray("\ndist/ is incomplete and will be rebuilt from static/ on the next run.\n"));
+    process.exit(1);
+  }
 
   for (const dir of [JS_DIR, UV_DIR, DYNAMIC_DIR]) {
     await rm(dir, { recursive: true, force: true });
@@ -645,7 +840,7 @@ async function build() {
       }
 
       if (OBFUSCATE_HTML) {
-        const obfuscated = await obfuscateHtml(html);
+        const obfuscated = await obfuscateHtml(html, path.relative(DIST_DIR, htmlPath));
         if (obfuscated !== html) {
           html = obfuscated;
           changed = true;

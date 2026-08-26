@@ -1,4 +1,10 @@
 (() => {
+  const BAREMUX_PATH = "/baremux/";
+  const TRANSPORTS = {
+    epoxy: "/epoxy/index.mjs",
+    libcurl: "/libcurl/index.mjs",
+  };
+
   if (window.__isSjTpReady) {
     return;
   }
@@ -7,6 +13,10 @@
 
   const sjConfig = {
     prefix: "/uv/scramjet/",
+    codec: {
+      encode: url => url && encodeURIComponent(url),
+      decode: url => url && decodeURIComponent(url),
+    },
     files: {
       wasm: "/assets/scramjet/scramjet.wasm",
       all: "/assets/scramjet/scramjet.all.js",
@@ -30,17 +40,20 @@
       throw new Error("Sj bundle did not load.");
     }
 
-    const [{ BareMuxConnection }, { ScramjetController }] = await Promise.all([import("/bm/index.mjs"), Promise.resolve(window.$scramjetLoadController())]);
+    const [{ BareMuxConnection }, { ScramjetController }] = await Promise.all([import(`${BAREMUX_PATH}index.mjs`), Promise.resolve(window.$scramjetLoadController())]);
 
     const sj = new ScramjetController(sjConfig);
     await sj.init();
 
-    const connection = new BareMuxConnection("/bm/worker.js");
-    await connection.setTransport("/ep/index.mjs", [{ wisp: getWispUrl() }]);
+    const transport = localStorage.getItem("is-sj-transport") === "libcurl" ? "libcurl" : "epoxy";
+    const connection = new BareMuxConnection(`${BAREMUX_PATH}worker.js`);
+    await connection.setTransport(TRANSPORTS[transport], [{ wisp: getWispUrl() }]);
 
     window.__isSj = {
       connection,
       controller: sj,
+      transports: TRANSPORTS,
+      transport,
       encodeUrl: url => sj.encodeUrl(url),
       decodeUrl: url => sj.decodeUrl(url),
       pxyUrl: url => sj.encodeUrl(url),

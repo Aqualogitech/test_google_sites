@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import http from "node:http";
+import { createRequire } from "node:module";
 import path from "node:path";
-import bareMuxNode from "@mercuryworkshop/bare-mux/node";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import { createBareServer } from "@nebula-services/bare-server-node";
 import chalk from "chalk";
@@ -15,7 +15,11 @@ import config from "./config.js";
 
 console.log(chalk.yellow("🚀 Starting server..."));
 
+const require = createRequire(import.meta.url);
 const __dirname = process.cwd();
+const { epoxyPath } = require("@mercuryworkshop/epoxy-transport");
+const { baremuxPath } = require("@mercuryworkshop/bare-mux/node");
+const libcurlPath = path.dirname(require.resolve("@mercuryworkshop/libcurl-transport"));
 
 const DIST_DIR = path.join(__dirname, "dist");
 const STATIC_DIR = path.join(__dirname, "static");
@@ -25,8 +29,6 @@ console.log(chalk.blue(`Serving from ${path.relative(__dirname, SERVE_DIR)}/`));
 const server = http.createServer();
 const app = express();
 const bareServer = createBareServer("/bare/");
-const { baremuxPath } = bareMuxNode;
-const epoxyDistPath = path.join(__dirname, "node_modules", "@mercuryworkshop", "epoxy-transport", "dist");
 const PORT = process.env.PORT || 8080;
 
 wisp.options.allow_loopback_ips = true;
@@ -110,17 +112,6 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const transportStaticOptions = {
-  setHeaders: (res, filePath) => {
-    const ext = path.extname(filePath);
-    if (ext === ".mjs" || ext === ".js") {
-      res.type("text/javascript");
-    } else if (ext === ".wasm") {
-      res.type("application/wasm");
-    }
-  },
-};
-
 const jsStaticOptions = {
   setHeaders: (res, filePath) => {
     const ext = path.extname(filePath);
@@ -135,8 +126,9 @@ const jsStaticOptions = {
 
 app.use(express.static(SERVE_DIR, jsStaticOptions));
 app.use("/bare", cors({ origin: true }));
-app.use("/bm", express.static(baremuxPath, transportStaticOptions));
-app.use("/ep", express.static(epoxyDistPath, transportStaticOptions));
+app.use("/epoxy/", express.static(epoxyPath));
+app.use("/libcurl/", express.static(libcurlPath));
+app.use("/baremux/", express.static(baremuxPath));
 
 const routes = [
   { path: "/apps", file: "apps.html" },

@@ -1,10 +1,43 @@
+function splitPayload(url = "") {
+  const index = url.search(/[?#]/);
+  return index < 0 ? [url, ""] : [url.slice(0, index), url.slice(index)];
+}
+
+function xorKeyValue(key) {
+  const value = /^\d+$/.test(key) ? Number(key) : parseInt(key, 36);
+  return Number.isFinite(value) && value > 1 ? (value % 30) + 2 : 2;
+}
+
+const encoder = {
+  // biome-ignore format: compact
+  xor: { encode: (url, key) => url && encodeURIComponent(url.split("").map((char, index) => (index % xorKeyValue(key) ? String.fromCharCode(char.charCodeAt(0) ^ xorKeyValue(key)) : char)).join("")), decode: (url, key) => { const [value, tail] = splitPayload(url); if (!value) return value; const xorKey = xorKeyValue(key); return decodeURIComponent(value).split("").map((char, index) => (index % xorKey ? String.fromCharCode(char.charCodeAt(0) ^ xorKey) : char)).join("") + tail } },
+};
+
+window.encode = {
+  xor: encoder.xor.encode,
+};
+
+window.decode = {
+  xor: encoder.xor.decode,
+};
+
 let swReady = false;
 let swReadyResolve;
 const swReadyPromise = new Promise(resolve => {
   swReadyResolve = resolve;
 });
 
+function isTabsPage() {
+  return document.body?.id === "no" || Boolean(document.getElementById("frame-container"));
+}
+
 window.addEventListener("load", async () => {
+  if (isTabsPage()) {
+    swReady = true;
+    swReadyResolve();
+    return;
+  }
+
   if (!("serviceWorker" in navigator)) {
     swReady = true;
     swReadyResolve();
@@ -50,7 +83,7 @@ async function waitForServiceWorker() {
 const form = document.getElementById("fv");
 const input = document.getElementById("input");
 
-if (form && input) {
+if (form && input && !isTabsPage()) {
   form.addEventListener("submit", async event => {
     event.preventDefault();
     try {
@@ -78,7 +111,8 @@ async function encodeUrl(url, proxyOverride) {
     }
   }
 
-  return `/uv/${__uv$config.encodeUrl(url)}`;
+  if (proxyOverride === "dy") return `/uv/dynamic/${window.encode.xor(url)}`;
+  return `/uv/${__uv$config.encodeUrl ? __uv$config.encodeUrl(url) : window.encode.xor(url)}`;
 }
 
 async function navigate(value, path, proxyOverride) {
@@ -99,7 +133,7 @@ async function navigate(value, path, proxyOverride) {
   sessionStorage.setItem("GoUrl", proxyUrl);
 
   if (proxyChoice === "dy") {
-    window.location.href = `/uv/dynamic/${__uv$config.encodeUrl(url)}`;
+    window.location.href = `/uv/dynamic/${window.encode.xor(url)}`;
   } else if (path) {
     location.href = path;
   } else {
@@ -107,7 +141,6 @@ async function navigate(value, path, proxyOverride) {
   }
 }
 
-// Open link in the tabs page
 function go(value, proxyOverride) {
   navigate(value, "/tabs", proxyOverride);
 }
@@ -118,7 +151,7 @@ function blank(value, proxyOverride) {
 }
 
 function useDynamic(value) {
-  navigate(value, `/uv/dynamic/${__uv$config.encodeUrl(value)}`, "dy");
+  navigate(value, `/uv/dynamic/${window.encode.xor(value)}`, "dy");
 }
 
 function isValidUrl(val = "") {
