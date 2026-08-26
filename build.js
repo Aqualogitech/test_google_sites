@@ -32,7 +32,22 @@ const KEEP_IN_PLACE = new Set();
 // scramjet.*: already-built vendor bundles.
 // sj-tp.js / ultraviolet.config.js: hold codec functions the proxies eval in another
 // realm, where the obfuscator's string-array helpers do not exist.
-const SKIP_OBFUSCATE = new Set(["scramjet.all.js", "scramjet.sync.js", "sj-tp.js", "ultraviolet.config.js"]);
+const SKIP_OBFUSCATE = new Set([
+  "scramjet.all.js",
+  "scramjet.sync.js",
+  "sj-tp.js",
+  "ultraviolet.config.js",
+  // Dynamic's rewriter (acorn parser + AST transform + codegen) runs in the service
+  // worker for every proxied JS file. Obfuscating it multiplies that cost per request,
+  // same reason scramjet.* is skipped above.
+  "dynamic.worker.js",
+  "dynamic.client.js",
+  "dynamic.handler.js",
+  "dynamic.html.js",
+  // Ultraviolet's bundle is the largest emitted file when obfuscated
+  // (784 KB -> 4.2 MB) and the service worker imports it on every load.
+  "ultraviolet.bundle.js",
+]);
 
 const OLD_DYNAMIC_PREFIX = "/assets/dynamic/";
 const OLD_UV_PREFIX = "/assets/ultraviolet/";
@@ -361,6 +376,7 @@ function patchOrFail(content, pattern, replacement, label, required = true) {
 const FIX2_GUARD = `("PropertyDefinition"!=t.type||t.key!=e||t.computed)`;
 const FIX3_GUARD = `"MetaProperty"==e.object.type`;
 const FIX4_GUARD = `"null"===e.origin?e.href:`;
+const FIX5_GUARD = `m.set(i,v.bind(e))`;
 const LOCAL_PATCH_ASSERTIONS = {
   "dynamic.worker.js": [
     ["Fix 1 html module filename", `[["html","dynamic.html.js"]]`, 1],
@@ -369,11 +385,13 @@ const LOCAL_PATCH_ASSERTIONS = {
     ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
   ],
   "dynamic.client.js": [
+    ["Fix 5 proxy bind", FIX5_GUARD, 1],
     ["Fix 2 PropertyDefinition.key guard", FIX2_GUARD, 1],
     ["Fix 3 import.meta.url base", FIX3_GUARD, 1],
     ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
   ],
   "dynamic.handler.js": [
+    ["Fix 5 proxy bind", FIX5_GUARD, 1],
     ["Fix 2 PropertyDefinition.key guard", FIX2_GUARD, 1],
     ["Fix 3 import.meta.url base", FIX3_GUARD, 1],
     ["Fix 4 opaque-origin guard", FIX4_GUARD, 1],
