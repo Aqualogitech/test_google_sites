@@ -9,13 +9,18 @@ overrides:
   qs@<6.14.1: '>=6.14.1'
   uuid@<14.0.0: '>=14.0.0'
 
+patchedDependencies:
+  '@mercuryworkshop/bare-mux@2.1.9':
+    hash: p2h2pod4rmljbocdwd5lo4pw64
+    path: patches/@mercuryworkshop__bare-mux@2.1.9.patch
+
 importers:
 
   .:
     dependencies:
       '@mercuryworkshop/bare-mux':
         specifier: ^2.1.9
-        version: 2.1.9
+        version: 2.1.9(patch_hash=p2h2pod4rmljbocdwd5lo4pw64)
       '@mercuryworkshop/epoxy-transport':
         specifier: 2.1.28
         version: 2.1.28
@@ -1093,7 +1098,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@mercuryworkshop/bare-mux@2.1.9': {}
+  '@mercuryworkshop/bare-mux@2.1.9(patch_hash=p2h2pod4rmljbocdwd5lo4pw64)': {}
 
   '@mercuryworkshop/epoxy-tls@2.1.18-1': {}
 
@@ -1107,7 +1112,7 @@ snapshots:
 
   '@mercuryworkshop/scramjet@1.1.0':
     dependencies:
-      '@mercuryworkshop/bare-mux': 2.1.9
+      '@mercuryworkshop/bare-mux': 2.1.9(patch_hash=p2h2pod4rmljbocdwd5lo4pw64)
       dom-serializer: 2.0.0
       domhandler: 5.0.3
       domutils: 3.2.2
