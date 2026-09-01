@@ -1,18 +1,18 @@
 export default function handler(req, res) {
-  // Set CORS headers so Google Sites can make requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Return sample JSON data
-  return res.status(200).json({
-    status: 'success',
-    message: 'Hello from your Vercel backend!',
-    timestamp: new Date().toISOString()
-  });
+  // Return HTML content instead of JSON
+  res.setHeader('Content-Type', 'text/html');
+  return res.status(200).send(`
+    <div style="font-family: sans-serif; padding: 10px;">
+      <h3>Content Loaded from Vercel Backend</h3>
+      <p>This is rendered dynamically without exposing source URLs.</p>
+    </div>
+  `);
 }
