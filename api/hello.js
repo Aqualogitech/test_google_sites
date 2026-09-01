@@ -1,4 +1,4 @@
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -7,7 +7,6 @@ export default function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Return HTML content instead of JSON
   res.setHeader('Content-Type', 'text/html');
   return res.status(200).send(`
     <div style="font-family: sans-serif; padding: 10px;">
@@ -15,4 +14,4 @@ export default function handler(req, res) {
       <p>This is rendered dynamically without exposing source URLs.</p>
     </div>
   `);
-}
+};
