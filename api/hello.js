@@ -1,5 +1,8 @@
 module.exports = function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Reflect the incoming origin dynamically
+  const origin = req.headers.origin || '*';
+  
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
