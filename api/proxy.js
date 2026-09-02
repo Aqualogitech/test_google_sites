@@ -1,19 +1,22 @@
 export default async function handler(req, res) {
-  const backendUrl = process.env.BACKEND_URL;
+  const secretBackend = process.env.MY_SECRET_BACKEND;
+
+  if (!secretBackend) {
+    return res.status(500).json({ error: "Backend URL not configured in Vercel settings" });
+  }
 
   try {
-    // Vercel's server fetches data from your backend securely
-    const response = await fetch(backendUrl, {
-      method: req.method,
-      headers: {
-        'Authorization': `Bearer ${process.env.BACKEND_SECRET_KEY}`, // hidden from client
-        'Content-Type': 'application/json',
-      },
-    });
+    // Get the search query or URL sent from index.html
+    const userQuery = req.query.q || '';
+    
+    // Append the query to your backend URL
+    const targetUrl = `${secretBackend}?q=${encodeURIComponent(userQuery)}`;
 
+    const response = await fetch(targetUrl);
     const data = await response.json();
+
     return res.status(200).json(data);
   } catch (error) {
-    return res.status(500).json({ error: 'Failed to fetch data' });
+    return res.status(500).json({ error: "Failed to connect to backend server" });
   }
 }
