@@ -77,7 +77,7 @@
       iframe.setAttribute('allow', 'fullscreen');
 
       // 4. Set source to your Google Apps Script Deployment URL
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec";
+      const APPS_SCRIPT_URL = "https://script.google.com/a/macros/g.gcpsk12.org/s/AKfycbx9ZxqC2cJ4Vzh9ok67yDEOZRCZnoK_Qxn23VkshHtgZ3iY6G602YLPmaoqIu7zqgos/exec";
       iframe.src = userInput ? `${APPS_SCRIPT_URL}?q=${encodeURIComponent(userInput)}` : APPS_SCRIPT_URL;
 
       // 5. Append frame to the about:blank document
