@@ -1,7 +1,9 @@
 export default async function handler(req, res) {
+  // Allow iframe embedding and cross-origin resource requests
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Content-Security-Policy", "frame-ancestors *");
 
   if (req.method === "OPTIONS") {
     return res.status(200).end();
@@ -34,18 +36,25 @@ export default async function handler(req, res) {
 
     const contentType = response.headers.get("content-type") || "";
 
+    // Converts relative or root URLs into absolute proxied routes
     function toProxyUrl(path) {
       if (!path || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('javascript:')) return path;
       if (path.startsWith(proxyEndpoint)) return path;
+
       let absolute = path;
-      if (path.startsWith('http://') || path.startsWith('https://')) absolute = path;
-      else if (path.startsWith('//')) absolute = 'https:' + path;
-      else if (path.startsWith('/')) absolute = origin + path;
-      else absolute = origin + basePath + path;
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        absolute = path;
+      } else if (path.startsWith('//')) {
+        absolute = 'https:' + path;
+      } else if (path.startsWith('/')) {
+        absolute = origin + path;
+      } else {
+        absolute = origin + basePath + path;
+      }
       return `${proxyEndpoint}${encodeURIComponent(absolute)}`;
     }
 
-    // Process CSS Stylesheets
+    // Process CSS files (rewrite internal url() references like fonts and images)
     if (contentType.includes("text/css")) {
       let css = await response.text();
       css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
@@ -53,29 +62,25 @@ export default async function handler(req, res) {
       return res.status(200).send(css);
     }
 
-    // Process Static Assets (Images, Fonts, Scripts)
+    // Process Static Assets (Images, Fonts, JavaScript files)
     if (!contentType.includes("text/html")) {
       const buffer = await response.arrayBuffer();
       res.setHeader("Content-Type", contentType);
       return res.status(200).send(Buffer.from(buffer));
     }
 
-    // Process HTML Documents
+    // Process HTML
     let body = await response.text();
 
-    // Remove security headers that prevent frame embedding
+    // Remove original base tags and Content-Security-Policy headers
+    body = body.replace(/<base[^>]*>/gi, '');
     body = body.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '');
 
-    // Inject base tag
-    const baseTag = `<base href="${proxyEndpoint}${encodeURIComponent(origin + basePath)}">`;
-    if (body.includes("<head>")) {
-      body = body.replace(/<head>/i, `<head>${baseTag}`);
-    } else {
-      body = baseTag + body;
-    }
-
-    // Rewrite all attributes pointing to external resources
+    // Rewrite all link/script/image/form attributes to proxy URLs
     body = body.replace(/(href|src|action)=["']([^"']+)["']/gi, (match, attr, url) => `${attr}="${toProxyUrl(url)}"`);
+
+    // Rewrite inline CSS url(...) rules inside <style> tags or style attributes
+    body = body.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send(body);
