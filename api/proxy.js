@@ -20,10 +20,10 @@ export default async function handler(req, res) {
 
   try {
     const targetUrlObj = new URL(userQuery);
-    const proxyEndpoint = "https://test-google-sites.vercel.app/api/proxy?q=";
     const origin = targetUrlObj.origin;
     const pathname = targetUrlObj.pathname;
     const basePath = pathname.substring(0, pathname.lastIndexOf('/') + 1) || '/';
+    const proxyEndpoint = "https://test-google-sites.vercel.app/api/proxy?q=";
 
     const response = await fetch(targetUrlObj.href, {
       headers: {
@@ -45,6 +45,7 @@ export default async function handler(req, res) {
       return `${proxyEndpoint}${encodeURIComponent(absolute)}`;
     }
 
+    // Process CSS Stylesheets
     if (contentType.includes("text/css")) {
       let css = await response.text();
       css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
@@ -52,56 +53,29 @@ export default async function handler(req, res) {
       return res.status(200).send(css);
     }
 
+    // Process Static Assets (Images, Fonts, Scripts)
     if (!contentType.includes("text/html")) {
       const buffer = await response.arrayBuffer();
       res.setHeader("Content-Type", contentType);
       return res.status(200).send(Buffer.from(buffer));
     }
 
+    // Process HTML Documents
     let body = await response.text();
+
+    // Remove security headers that prevent frame embedding
     body = body.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '');
 
-    const clientInterceptor = `
-      <script>
-        (function() {
-          const PROXY = "${proxyEndpoint}";
-          const ORIGIN = "${origin}";
-          const BASE_PATH = "${basePath}";
-
-          function resolveUrl(url) {
-            if (!url || typeof url !== 'string') return url;
-            if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('javascript:') || url.startsWith(PROXY)) return url;
-            let absolute = url;
-            if (url.startsWith('http://') || url.startsWith('https://')) absolute = url;
-            else if (url.startsWith('//')) absolute = 'https:' + url;
-            else if (url.startsWith('/')) absolute = ORIGIN + url;
-            else absolute = ORIGIN + BASE_PATH + url;
-            return PROXY + encodeURIComponent(absolute);
-          }
-
-          const origFetch = window.fetch;
-          window.fetch = function(resource, init) {
-            if (typeof resource === 'string') resource = resolveUrl(resource);
-            else if (resource && resource.url) resource = new Request(resolveUrl(resource.url), resource);
-            return origFetch.call(this, resource, init);
-          };
-
-          const origOpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function(method, url, ...args) {
-            return origOpen.call(this, method, resolveUrl(url), ...args);
-          };
-        })();
-      </script>
-    `;
-
+    // Inject base tag
+    const baseTag = `<base href="${proxyEndpoint}${encodeURIComponent(origin + basePath)}">`;
     if (body.includes("<head>")) {
-      body = body.replace(/<head>/i, `<head>${clientInterceptor}`);
+      body = body.replace(/<head>/i, `<head>${baseTag}`);
     } else {
-      body = clientInterceptor + body;
+      body = baseTag + body;
     }
 
+    // Rewrite all attributes pointing to external resources
     body = body.replace(/(href|src|action)=["']([^"']+)["']/gi, (match, attr, url) => `${attr}="${toProxyUrl(url)}"`);
-    body = body.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.status(200).send(body);
