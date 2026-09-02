@@ -50,6 +50,25 @@
     gtag("config", "G-WKJQ5QHQTJ")
   </script>
   <!-- DO NOT REMOVE-->
+  <script>
+  document.getElementById('fv').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const userInput = document.getElementById('input').value;
+    if (!userInput) return;
+
+    try {
+      // Send user input directly to your hidden Vercel proxy endpoint
+      const response = await fetch(`/api/proxy?q=${encodeURIComponent(userInput)}`);
+      const data = await response.json();
+
+      console.log("Data from hidden backend:", data);
+      // Add logic here to display or render your results
+    } catch (err) {
+      console.error("Proxy fetch failed:", err);
+    }
+  });
+</script>
 </body>
 
 </html>
