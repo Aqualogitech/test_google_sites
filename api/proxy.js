@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS Headers: Permits the Google Apps Script iframe to fetch assets
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "*");
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
 
     const contentType = response.headers.get("content-type") || "";
 
-    // Helper to convert relative URLs to proxy URLs
     function toProxyUrl(path) {
       if (!path || path.startsWith('data:') || path.startsWith('blob:') || path.startsWith('javascript:')) return path;
       if (path.startsWith(proxyEndpoint)) return path;
@@ -47,7 +45,6 @@ export default async function handler(req, res) {
       return `${proxyEndpoint}${encodeURIComponent(absolute)}`;
     }
 
-    // CSS Processing: Rewrite relative url() assets inside stylesheet files
     if (contentType.includes("text/css")) {
       let css = await response.text();
       css = css.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
@@ -55,20 +52,15 @@ export default async function handler(req, res) {
       return res.status(200).send(css);
     }
 
-    // Non-HTML/CSS Processing (JS, Images, Fonts): Stream raw data
     if (!contentType.includes("text/html")) {
       const buffer = await response.arrayBuffer();
       res.setHeader("Content-Type", contentType);
       return res.status(200).send(Buffer.from(buffer));
     }
 
-    // HTML Processing
     let body = await response.text();
-
-    // Strip Security Policies blocking third-party styles
     body = body.replace(/<meta[^>]*http-equiv=["']?Content-Security-Policy["']?[^>]*>/gi, '');
 
-    // Inject Interceptor Script into <head> to route dynamic JS fetch/XHR calls through proxy
     const clientInterceptor = `
       <script>
         (function() {
@@ -108,10 +100,7 @@ export default async function handler(req, res) {
       body = clientInterceptor + body;
     }
 
-    // Rewrite static HTML attributes
     body = body.replace(/(href|src|action)=["']([^"']+)["']/gi, (match, attr, url) => `${attr}="${toProxyUrl(url)}"`);
-
-    // Rewrite inline styles
     body = body.replace(/url\((['"]?)([^'")]+)\1\)/gi, (match, quote, url) => `url("${toProxyUrl(url)}")`);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
