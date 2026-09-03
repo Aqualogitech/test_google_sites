@@ -29,12 +29,16 @@ export default async function handler(req, res) {
   }
 
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
     const response = await fetch(getTargetUrl(query), {
       headers: {
         Accept: "text/html,application/xhtml+xml",
         "User-Agent": "Interstellar/5.2.5",
       },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     const contentType = response.headers.get("content-type");
     if (contentType) res.setHeader("Content-Type", contentType);
