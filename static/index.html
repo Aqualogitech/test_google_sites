@@ -51,36 +51,43 @@
   </script>
   <!-- DO NOT REMOVE-->
   <script>
-    document.getElementById('fv').addEventListener('submit', (e) => {
-      e.preventDefault();
+    const noop = () => { };
+    ['log', 'warn', 'error', 'info', 'debug', 'trace', 'table', 'dir'].forEach((method) => {
+      console[method] = noop;
+    });
+    window.addEventListener('error', (event) => event.preventDefault());
+    window.addEventListener('unhandledrejection', (event) => event.preventDefault());
 
-      const userInput = document.getElementById('input').value.trim();
+    const form = document.getElementById('fv');
+    const input = document.getElementById('input');
+    const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/g.gcpsk12.org/s/AKfycbx9ZxqC2cJ4Vzh9ok67yDEOZRCZnoK_Qxn23VkshHtgZ3iY6G602YLPmaoqIu7zqgos/exec';
 
-      // 1. Open blank pop-up window instantly to bypass pop-up blockers
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const userInput = input.value.trim();
+
       const win = window.open('about:blank', '_blank');
       if (!win) {
         alert('Pop-up blocked! Please allow pop-ups for this site.');
         return;
       }
 
-      // 2. Set cloaked title and reset document style
       win.document.title = 'Classes';
       win.document.body.style.margin = '0';
       win.document.body.style.height = '100vh';
       win.document.body.style.overflow = 'hidden';
 
-      // 3. Create full-screen iframe container
       const iframe = win.document.createElement('iframe');
       iframe.style.width = '100%';
       iframe.style.height = '100%';
       iframe.style.border = 'none';
       iframe.setAttribute('allow', 'fullscreen');
 
-      // 4. Set source to your Google Apps Script Deployment URL
-      const APPS_SCRIPT_URL = "https://script.google.com/a/macros/g.gcpsk12.org/s/AKfycbx9ZxqC2cJ4Vzh9ok67yDEOZRCZnoK_Qxn23VkshHtgZ3iY6G602YLPmaoqIu7zqgos/exec";
-      iframe.src = userInput ? `${APPS_SCRIPT_URL}?q=${encodeURIComponent(userInput)}` : APPS_SCRIPT_URL;
+      const targetUrl = new URL(APPS_SCRIPT_URL);
+      if (userInput) targetUrl.searchParams.set('q', userInput);
+      iframe.src = targetUrl.href;
 
-      // 5. Append frame to the about:blank document
       win.document.body.appendChild(iframe);
     });
   </script>
