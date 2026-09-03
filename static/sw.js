@@ -1,9 +1,9 @@
-importScripts("/assets/history/config.js?v=2025-04-15");
-importScripts("/assets/history/worker.js?v=2025-04-15");
-importScripts("/assets/mathematics/bundle.js?v=2025-04-15");
-importScripts("/assets/mathematics/config.js?v=2025-04-15");
-importScripts(__uv$config.sw || "/assets/mathematics/sw.js?v=2025-04-15");
-importScripts("/assets/languagearts/sj.all.js?v=2025-04-15");
+importScripts("/assets/history-obfuscated/config.js?v=2025-04-15");
+importScripts("/assets/history-obfuscated/worker.js?v=2025-04-15");
+importScripts("/assets/mathematics-obfuscated/bundle.js?v=2025-04-15");
+importScripts("/assets/mathematics-obfuscated/config.js?v=2025-04-15");
+importScripts(__uv$config.sw || "/assets/mathematics-obfuscated/sw.js?v=2025-04-15");
+importScripts("/assets/languagearts-obfuscated/sj.all.js?v=2025-04-15");
 const { ScramjetServiceWorker } = $scramjetLoadWorker();
 
 const uv = new UVServiceWorker();
