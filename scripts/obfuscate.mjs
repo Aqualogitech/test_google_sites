@@ -35,7 +35,6 @@ function obfuscateDirectory(sourceDirectory, outputDirectory) {
       pnpm,
       [
         "dlx",
-        "--yes",
         "javascript-obfuscator@5.6.0",
         sourcePath,
         "--output",
