@@ -11,6 +11,7 @@ import bareMuxNode from "@mercuryworkshop/bare-mux/node";
 import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import mime from "mime";
 import fetch from "node-fetch";
+import appsScriptHandler from "./api/apps-script.js";
 // import { setupMasqr } from "./Masqr.js";
 import config from "./config.js";
 
@@ -97,6 +98,8 @@ app.get("/e/*", async (req, res, next) => {
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+app.get("/api/apps-script", appsScriptHandler);
 
 /* if (process.env.MASQR === "true") {
   console.log(chalk.green("Masqr is enabled"));

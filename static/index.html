@@ -60,7 +60,6 @@
 
     const form = document.getElementById('fv');
     const input = document.getElementById('input');
-    const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/g.gcpsk12.org/s/AKfycbx9ZxqC2cJ4Vzh9ok67yDEOZRCZnoK_Qxn23VkshHtgZ3iY6G602YLPmaoqIu7zqgos/exec';
 
     form.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -84,7 +83,7 @@
       iframe.style.border = 'none';
       iframe.setAttribute('allow', 'fullscreen');
 
-      const targetUrl = new URL(APPS_SCRIPT_URL);
+      const targetUrl = new URL('/api/apps-script', window.location.origin);
       if (userInput) targetUrl.searchParams.set('q', userInput);
       iframe.src = targetUrl.href;
 

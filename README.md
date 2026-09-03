@@ -47,6 +47,10 @@ git clone https://github.com/UseInterstellar/Interstellar
 cd Interstellar
 ```
 
+#### Apps Script backend
+
+The homepage sends requests through `/api/apps-script`; the Apps Script deployment URL is kept on the server. Add a Vercel environment variable named `APPS_SCRIPT_URL` containing the full HTTPS deployment URL, then redeploy. Do not expose this value in client-side code.
+
 #### Ad-Free Deployment
 
 ```bash
